@@ -1,8 +1,10 @@
 package com.juliovillalvazo.todoappapi;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,17 +18,20 @@ public class TodoModel {
     private String state;
     private Optional<Long> dueDate;
     private Optional<Long> doneDate;
+    @JsonIgnore
+    private long createdDate;
 
     public TodoModel() {
     }
 
-    public TodoModel(UUID id, String name, String priority, String state, Optional<Long> dueDate, Optional<Long> doneDate) {
+    public TodoModel(UUID id, String name, String priority, String state, Optional<Long> dueDate, Optional<Long> doneDate, long createdDate) {
         this.id = id;
         this.name = name;
         this.priority = priority;
         this.state = state;
         this.dueDate = dueDate;
         this.doneDate = doneDate;
+        this.createdDate = createdDate;
     }
 
     public String getName() {
@@ -75,5 +80,13 @@ public class TodoModel {
 
     public void setDoneDate(Optional<Long> finishedDate) {
         this.doneDate = finishedDate;
+    }
+
+    public long getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(long createdDate) {
+        this.createdDate = createdDate;
     }
 }

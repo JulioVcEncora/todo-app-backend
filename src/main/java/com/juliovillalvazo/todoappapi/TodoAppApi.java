@@ -6,14 +6,45 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 @RestController
 public class TodoAppApi {
-    private List<TodoModel> todos = new ArrayList<>();
+    private List<TodoModel> todos = new CopyOnWriteArrayList<>();
 
     @GetMapping("/todos")
-    public List<TodoModel> readTodos(@RequestBody(required = false) Map<String, String> requestBody) {
-        return todos;
+    public List<TodoModel> getTodos(@RequestParam(required = false) String name, @RequestParam(required = false) String priority, @RequestParam(required = false) String state, @RequestParam(required = false) Optional<Long> dueDate) {
+        if(name == null && priority == null && state == null && dueDate.isEmpty()) {
+            return todos;
+        }
+        if(priority != null && !priority.equals("high") && !priority.equals("medium") && !priority.equals("low") && !priority.equals("all")) {
+            throw new InvalidParamsExceptionHandler("Priority can only be high, medium or low!");
+        }
+
+        if(state != null && !state.equals("done") && !state.equals("undone") && !state.equals("all")) {
+            throw new InvalidParamsExceptionHandler("State can only be done or undone!");
+        }
+
+        List<TodoModel> filteredTodos = new ArrayList<>(todos);
+
+        if (name != null) {
+            filteredTodos.removeIf(task -> !task.getName().contains(name));
+        }
+
+        if (priority != null && !priority.equals("all")) {
+            filteredTodos.removeIf(task -> !task.getPriority().equals(priority));
+        }
+
+        if (state != null && !state.equals("all")) {
+            filteredTodos.removeIf(task -> !task.getState().equals(state));
+        }
+
+        if (dueDate.isPresent()) {
+            filteredTodos.removeIf(task -> !task.getDueDate().equals(dueDate));
+        }
+
+        return filteredTodos;
     }
 
     @PostMapping("/todos")
@@ -57,13 +88,13 @@ public class TodoAppApi {
         }
 
         UUID id = UUID.randomUUID();
-        TodoModel newTodo = new TodoModel(id, name, priority, state, formattedDueDate, formattedDoneDate);
+        TodoModel newTodo = new TodoModel(id, name, priority, state, formattedDueDate, formattedDoneDate, System.currentTimeMillis());
 
         todos.add(newTodo);
 
         return newTodo;
     }
-
+    @CrossOrigin(origins = "http://localhost:5173")
     @PutMapping("/todos/{id}")
     public TodoModel updateTodo(@PathVariable String id, @RequestBody TodoModel requestBody) {
         UUID formattedId = UUID.fromString(id);
@@ -72,13 +103,17 @@ public class TodoAppApi {
         String priority = requestBody.getPriority();
         String state = requestBody.getState();
         Optional<Long> dueDate = requestBody.getDueDate();
-        Optional<Long> doneDate = requestBody.getDoneDate();
 
         for(TodoModel todo : todos) {
             if(todo.getId().equals(formattedId)) {
                 todo.setName(name);
-                todo.setDoneDate(doneDate);
                 todo.setDueDate(dueDate);
+                if(state.equals("undone")) {
+                    todo.setDoneDate(Optional.empty());
+                }
+                if(state.equals("done") && todo.getDoneDate().isEmpty()) {
+                    todo.setDoneDate(Optional.of(System.currentTimeMillis()));
+                }
                 todo.setState(state);
                 todo.setPriority(priority);
                 return todo;
@@ -124,6 +159,66 @@ public class TodoAppApi {
         }
 
         throw new NotFoundExceptionHandler("Could not find that To Do!");
+    }
+
+    @CrossOrigin(origins = "http://localhost:5173")
+    @GetMapping("/todos/metrics")
+    public MetricsModel getMetrics() {
+        long generalSum = 0;
+        long generalElements = 0;
+        long generalAverageTime = 0;
+
+        long lowSum = 0;
+        long lowElements = 0;
+        long lowAverage = 0;
+
+        long mediumSum = 0;
+        long mediumElements = 0;
+        long mediumAverage = 0;
+
+        long highSum = 0;
+        long highElements = 0;
+        long highAverage = 0;
+
+        for(TodoModel todo : todos) {
+            if(todo.getState().equals("done") && todo.getDoneDate().isPresent()) {
+                generalSum += todo.getDoneDate().get() - todo.getCreatedDate();
+                generalElements++;
+
+                if(todo.getPriority().equals("low")) {
+                    lowSum += todo.getDoneDate().get() - todo.getCreatedDate();
+                    lowElements++;
+                }
+
+                if(todo.getPriority().equals("medium")) {
+                    mediumSum += todo.getDoneDate().get() - todo.getCreatedDate();
+                    mediumElements++;
+                }
+
+                if(todo.getPriority().equals("high")) {
+                    highSum += todo.getDoneDate().get() - todo.getCreatedDate();
+                    highElements++;
+                }
+            }
+        }
+
+        if(generalElements > 0) {
+            generalAverageTime = generalSum / generalElements;
+        }
+
+        if(lowElements > 0) {
+            lowAverage = lowSum / lowElements;
+        }
+
+        if(mediumElements > 0) {
+            mediumAverage = mediumSum / mediumElements;
+        }
+
+        if(highElements > 0) {
+            highAverage = highSum / highElements;
+        }
+
+        return new MetricsModel(generalAverageTime, lowAverage, mediumAverage, highAverage);
     }
 }
 

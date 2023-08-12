@@ -20,6 +20,7 @@ public class TodoAppApiApplication {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/todos").allowedOrigins("http://localhost:5173");
+                registry.addMapping("/todos/{id}").allowedOrigins("http://localhost:5173");
                 registry.addMapping("/todos/{id}/done").allowedOrigins("http://localhost:5173");
                 registry.addMapping("/todos/{id}/undone").allowedOrigins("http://localhost:5173");
 
