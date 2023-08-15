@@ -1,28 +1,46 @@
 package com.juliovillalvazo.todoappapi;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 @RestController
 public class TodoAppApi {
     private List<TodoModel> todos = new CopyOnWriteArrayList<>();
 
     @GetMapping("/todos")
-    public List<TodoModel> getTodos(@RequestParam(required = false) String name, @RequestParam(required = false) String priority, @RequestParam(required = false) String state, @RequestParam(required = false) Optional<Long> dueDate) {
-        if(name == null && priority == null && state == null && dueDate.isEmpty()) {
-            return todos;
+    public ResponseEntity<Page<TodoModel>> getPaginatedTodos(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) Optional<Long> dueDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        int startIndex = page * pageSize;
+        if (name == null && priority == null && state == null && dueDate.isEmpty()) {
+            // Calculate the range of elements for the requested page
+            int endIndex = Math.min(startIndex + pageSize, todos.size());
+
+            List<TodoModel> paginatedTodos = todos.subList(startIndex, endIndex);
+
+            // Create a Page object and return it
+            Page<TodoModel> pageResult = new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), todos.size());
         }
-        if(priority != null && !priority.equals("high") && !priority.equals("medium") && !priority.equals("low") && !priority.equals("all")) {
+
+        if (priority != null && !priority.equals("high") && !priority.equals("medium") && !priority.equals("low") && !priority.equals("all")) {
             throw new InvalidParamsExceptionHandler("Priority can only be high, medium or low!");
         }
 
-        if(state != null && !state.equals("done") && !state.equals("undone") && !state.equals("all")) {
+        if (state != null && !state.equals("done") && !state.equals("undone") && !state.equals("all")) {
             throw new InvalidParamsExceptionHandler("State can only be done or undone!");
         }
 
@@ -44,8 +62,17 @@ public class TodoAppApi {
             filteredTodos.removeIf(task -> !task.getDueDate().equals(dueDate));
         }
 
-        return filteredTodos;
+        // Calculate the range of elements for the requested page
+        int endIndex = Math.min(startIndex + pageSize, filteredTodos.size());
+
+        List<TodoModel> paginatedTodos = filteredTodos.subList(startIndex, endIndex);
+
+        // Create a Page object and return it
+        Page<TodoModel> pageResult = new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), filteredTodos.size());
+
+        return ResponseEntity.ok(pageResult);
     }
+
 
     @PostMapping("/todos")
     public TodoModel createTodo(@Valid @RequestBody Map<String, String> requestBody) {
