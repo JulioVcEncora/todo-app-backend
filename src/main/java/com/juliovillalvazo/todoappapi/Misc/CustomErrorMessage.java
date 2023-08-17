@@ -1,4 +1,4 @@
-package com.juliovillalvazo.todoappapi;
+package com.juliovillalvazo.todoappapi.Misc;
 
 public class CustomErrorMessage {
     private int statusCode;

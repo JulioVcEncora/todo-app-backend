@@ -1,5 +1,10 @@
-package com.juliovillalvazo.todoappapi;
+package com.juliovillalvazo.todoappapi.Controller;
 
+import com.juliovillalvazo.todoappapi.Exception.InvalidParamsExceptionHandler;
+import com.juliovillalvazo.todoappapi.models.MetricsModel;
+import com.juliovillalvazo.todoappapi.Exception.NotFoundExceptionHandler;
+import com.juliovillalvazo.todoappapi.models.TodoModel;
+import com.juliovillalvazo.todoappapi.Misc.SortHandler;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -22,18 +27,31 @@ public class TodoAppApi {
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) Optional<Long> dueDate,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
 
         int startIndex = page * pageSize;
+        int endIndex = 0;
         if (name == null && priority == null && state == null && dueDate.isEmpty()) {
             // Calculate the range of elements for the requested page
-            int endIndex = Math.min(startIndex + pageSize, todos.size());
 
+            if(sort != null) {
+//              List<TodoModel> paginatedTodos = todos.sort(sortHandler.getSortComparator(sort)).subList(startIndex, endIndex);
+                SortHandler sortHandler = new SortHandler();
+                List<TodoModel> todosCopy = new ArrayList<>(todos);
+                todosCopy.sort(sortHandler.getSortComparator(sort));
+
+                endIndex = Math.min(startIndex + pageSize, todosCopy.size());
+                List<TodoModel> paginatedTodos = todosCopy.subList(startIndex, endIndex);
+                // Create a Page object and return it
+                return ResponseEntity.ok(new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), todosCopy.size()));
+            }
+
+            endIndex = Math.min(startIndex + pageSize, todos.size());
             List<TodoModel> paginatedTodos = todos.subList(startIndex, endIndex);
-
             // Create a Page object and return it
-            Page<TodoModel> pageResult = new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), todos.size());
+            return ResponseEntity.ok(new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), todos.size()));
         }
 
         if (priority != null && !priority.equals("high") && !priority.equals("medium") && !priority.equals("low") && !priority.equals("all")) {
@@ -62,9 +80,17 @@ public class TodoAppApi {
             filteredTodos.removeIf(task -> !task.getDueDate().equals(dueDate));
         }
 
-        // Calculate the range of elements for the requested page
-        int endIndex = Math.min(startIndex + pageSize, filteredTodos.size());
+        if(sort != null) {
+            SortHandler sortHandler = new SortHandler();
+            List<TodoModel> todosCopy = new ArrayList<>(filteredTodos);
+            todosCopy.sort(sortHandler.getSortComparator(sort));
+            endIndex = Math.min(startIndex + pageSize, todosCopy.size());
 
+            List<TodoModel> paginatedTodos = todosCopy.subList(startIndex, endIndex);
+            return ResponseEntity.ok(new PageImpl<>(paginatedTodos, PageRequest.of(page, pageSize), todosCopy.size()));
+        }
+
+        endIndex = Math.min(startIndex + pageSize, filteredTodos.size());
         List<TodoModel> paginatedTodos = filteredTodos.subList(startIndex, endIndex);
 
         // Create a Page object and return it
@@ -72,7 +98,6 @@ public class TodoAppApi {
 
         return ResponseEntity.ok(pageResult);
     }
-
 
     @PostMapping("/todos")
     public TodoModel createTodo(@Valid @RequestBody Map<String, String> requestBody) {

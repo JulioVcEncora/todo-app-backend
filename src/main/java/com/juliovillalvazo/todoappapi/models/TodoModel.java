@@ -1,4 +1,4 @@
-package com.juliovillalvazo.todoappapi;
+package com.juliovillalvazo.todoappapi.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotEmpty;

@@ -1,4 +1,4 @@
-package com.juliovillalvazo.todoappapi;
+package com.juliovillalvazo.todoappapi.models;
 
 public class MetricsModel {
     private long generalAverageTime;
